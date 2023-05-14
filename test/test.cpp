@@ -7,8 +7,6 @@
 
 int round_up(int x, int n){
     int r = x % n;
-    if(r == 0)
-        return x;
     return x - r + n;
 }
 
@@ -26,7 +24,7 @@ TEST_CASE("init"){
         buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
         REQUIRE_EQ(mem.levels, _levels); \
         REQUIRE_EQ(mem.pgsize, _pgsize); \
-        REQUIRE_EQ(mem.pages, _pages); \       
+        REQUIRE_EQ(mem.pages, _pages - serv_pages); \
         REQUIRE_EQ( \
             (char*)mem.data - (char*)ptr, \
             serv_pages * _pgsize \
@@ -36,8 +34,13 @@ TEST_CASE("init"){
 
     TEST_INIT(1, 110, 1000);
     TEST_INIT(10, 110, 1000);
+    CHECK_EQ(test(), 1);
 
 
     #undef TEST_INIT
 
 }
+
+// int main(){
+//     test();
+// }

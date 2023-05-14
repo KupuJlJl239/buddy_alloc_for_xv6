@@ -1,17 +1,15 @@
+#pragma once
 #include "inttypes.h"
 
 
-#ifndef BUDDY_LEVELS
-#define BUDDY_LEVELS 10 
-#endif
+int test();
+
+enum BuddyTableState{
+    BUDDY_FREE = -1,
+    BUDDY_USED = -2,
+};
 
 
-#ifndef BUDDY_PGSIZE
-#define BUDDY_PGSIZE 4096
-#endif
-
-
-void assert(int condition, const char* message);
 
 
 /*
@@ -21,8 +19,8 @@ void assert(int condition, const char* message);
 Свободные куски в каждом списке расположены не обязательно по порядку.
 Также список хранит свою длину.
 */
-typedef struct {
-    buddy_node_t* next;
+typedef struct buddy_node{
+    struct buddy_node* next;
 } buddy_node_t;
 
 typedef struct {
@@ -57,11 +55,12 @@ typedef struct {
 typedef struct {
     int levels;
     uint64_t pgsize;
+
     buddy_list_t* lists;
     char* state_table;
 
-    void* data;
     uint64_t pages;
+    void* data;
 } buddy_allocator_t;
 
 
@@ -79,10 +78,10 @@ void buddy_free(buddy_allocator_t* mem, void* addr);
 
 
 
-typedef struct {
-    uint64_t total;
-    uint64_t free;
-    uint64_t free_by_size[BUDDY_LEVELS];
-} buddy_info_t;
+// typedef struct {
+//     uint64_t total;
+//     uint64_t free;
+//     uint64_t free_by_size[BUDDY_LEVELS];
+// } buddy_info_t;
 
-void buddy_info(buddy_allocator_t* mem, buddy_info_t* info);
+// void buddy_info(buddy_allocator_t* mem, buddy_info_t* info);
