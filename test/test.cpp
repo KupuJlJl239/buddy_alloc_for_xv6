@@ -37,13 +37,6 @@ TEST_CASE("init"){
 
     TEST_INIT(1, 110, 1000);
     TEST_INIT(10, 110, 1000);
-    CHECK_EQ(test(), 1);
-
 
     #undef TEST_INIT
-
 }
-
-// int main(){
-//     test();
-// }

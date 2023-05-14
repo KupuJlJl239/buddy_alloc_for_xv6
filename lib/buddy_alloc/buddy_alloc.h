@@ -2,8 +2,6 @@
 #include "inttypes.h"
 
 
-int test();
-
 enum BuddyTableState{
     BUDDY_FREE = -1,
     BUDDY_USED = -2,
@@ -56,11 +54,11 @@ typedef struct {
     int levels;
     uint64_t pgsize;
 
-    buddy_list_t* lists;
+    buddy_list_t* lists;  // указывает также на начало метаданных
     char* state_table;
 
-    uint64_t pages;
-    void* data;
+    uint64_t pages;  // количество рабочих страниц
+    void* data;      // указатель на первую рабочую страницу
 } buddy_allocator_t;
 
 
