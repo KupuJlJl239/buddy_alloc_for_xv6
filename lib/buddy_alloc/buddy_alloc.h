@@ -19,6 +19,7 @@ enum BuddyTableState{
 */
 typedef struct buddy_node{
     struct buddy_node* next;
+    struct buddy_node* prev;
 } buddy_node_t;
 
 typedef struct {

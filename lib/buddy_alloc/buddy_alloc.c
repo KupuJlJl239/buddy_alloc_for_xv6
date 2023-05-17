@@ -22,16 +22,38 @@ void list_init(buddy_list_t* list){
 
 void list_add(buddy_list_t* list, buddy_node_t* node){
     node->next = list->first;
+    node->prev = (buddy_node_t*)0;
+    if(list->first)
+        list->first->prev = node;
     list->first = node;
     list->len += 1;
+}
+
+void list_remove(buddy_list_t* list, buddy_node_t* node){
+    assert(list->len > 0);
+    buddy_node_t* prev = node->prev;
+    buddy_node_t* next = node->next;
+    if(prev && next){
+        prev->next = next;
+        next->prev = prev;
+    }
+    else if(!prev && next){
+        list->first = next;
+        next->prev = 0;
+    }
+    else if(prev && !next){
+        prev->next = 0;
+    }
+    else {  // !prev && !next
+        list->first = 0;
+    }
+    list->len--;   
 }
 
 buddy_node_t* list_pop(buddy_list_t* list){
     buddy_node_t* res = list->first;
     if(res){
-        assert(list->len > 0);
-        list->first = list->first->next;    
-        list->len -= 1;
+        list_remove(list, res);
     }
     return res;
 }
@@ -116,7 +138,7 @@ void buddy_init(
 
 // Выделение памяти
 
-int log2(uint64_t n){
+int buddy_log2(uint64_t n){
     for(int log = 0; log < sizeof(n) * 8; log++){
         if(n == (1 << log))
             return log;   
@@ -139,7 +161,8 @@ void buddy_devide(buddy_allocator_t* mem, buddy_node_t* node, int initial_lvl, i
         initial_lvl -= 1;
 
         // Вторую половину объявляем свободной, а первую продолжаем делить
-        list_add( &mem->lists[initial_lvl], (char*)node + (mem->pgsize << initial_lvl));
+        char* second_part = (char*)node + (mem->pgsize << initial_lvl);
+        list_add( &mem->lists[initial_lvl], (buddy_node_t*)second_part);
     }
 }
 
@@ -157,7 +180,7 @@ void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
     */
 
     // 0
-    int lvl = log2(pages);
+    int lvl = buddy_log2(pages);
     if(lvl == -1)
         return 0;
     assert(pages == 1 << lvl);
@@ -190,6 +213,52 @@ void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
 // Освобождение памяти
 
 
+int get_page_number(buddy_allocator_t* mem, void* page_ptr){
+    int d = (char*)page_ptr - (char*)mem->data;
+    if(d % mem->pgsize != 0)
+        return -1;
+    if(!(0 <= d && d < mem->pages))
+        return -1;
+    return d / mem->pgsize;
+}
+
+void clear_state_table_part(buddy_allocator_t* mem, uint64_t pn){
+    assert(mem->state_table[pn] >= 0);
+    uint64_t size = 1 << mem->state_table[pn];
+    for(int i = 0; i < size; i++){
+        assert(mem->state_table[pn + i] != BUDDY_FREE);
+        mem->state_table[pn + i] = BUDDY_FREE;
+    }
+}
+
+void unite(buddy_allocator_t* mem, int lvl, void* free_block){
+
+}
+
+void buddy_free(buddy_allocator_t* mem, void* addr){
+    /*
+    0) По адресу получаем корректный номер страницы, или понимаем что адрес
+        неправильный
+    1) Смотрим в таблицу состояний - если в ней по этому номеру значится начало
+        выделенного куска, переходим дальше, иначе возвращаем ошибку (или паникуем)
+    2) Очищаем кусок в таблице состояний
+    3) Образовался свободный кусок. Склеиваем его (возможно нуль или несколько раз)
+        и добавляем в список свободных участков
+    */
+
+    // 0
+    int pn = get_page_number(mem, addr);
+    assert(pn >= 0);
+
+    // 1
+    int lvl = mem->state_table[pn];
+    assert(lvl >= 0);
+    
+    // 2
+    clear_state_table_part(mem, pn);
+
+    
+}
 
 
 
