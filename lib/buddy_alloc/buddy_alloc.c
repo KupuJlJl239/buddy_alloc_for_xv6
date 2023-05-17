@@ -66,9 +66,9 @@ uint64_t get_serv_pages(int levels, uint64_t pgsize, uint64_t pages){
     return serv_size / pgsize + 1;
 }
 
-void* get_page_ptr(buddy_allocator_t* mem, int lvl, int number){
-    return (char*)mem->data + (mem->pgsize << lvl) * number;
-}
+// void* get_page_ptr(buddy_allocator_t* mem, int lvl, int number){
+//     return (char*)mem->data + (mem->pgsize << lvl) * number;
+// }
 
 
 
@@ -222,6 +222,11 @@ int get_page_number(buddy_allocator_t* mem, void* page_ptr){
     return d / mem->pgsize;
 }
 
+
+void* get_page_ptr(buddy_allocator_t* mem, int page_number){
+    return (char*)mem->data + mem->pgsize * page_number;
+}
+
 void clear_state_table_part(buddy_allocator_t* mem, uint64_t pn){
     assert(mem->state_table[pn] >= 0);
     uint64_t size = 1 << mem->state_table[pn];
@@ -231,9 +236,38 @@ void clear_state_table_part(buddy_allocator_t* mem, uint64_t pn){
     }
 }
 
-void unite(buddy_allocator_t* mem, int lvl, void* free_block){
+void add_free_block(buddy_allocator_t* mem, int lvl, uint64_t pn){
+    /*
+    До тех пор, пока сосед свободен, объединяемся с ним:
+    1) Выкидываем соседа из списка
+    2) Заменяем np, на min(np, npn)
+    3) Повышаем уровень lvl
+    В конце добавляем один большой кусок
+    */
+    while(1){
+        // 0
+        assert(pn & ((1LL << lvl) - 1) == 0);
+        uint64_t npn = pn ^ (1LL << lvl);  // neighbour page number
+        if(npn >= mem->pages)
+            return;
+        if(mem->state_table[npn] != BUDDY_FREE)
+            return;
 
+        // 1
+        buddy_node_t* n_node = get_page_ptr(mem, npn);
+        list_remove(&mem->lists[lvl], n_node);
+
+        // 2
+        if(npn < pn)
+            pn = npn;
+
+        // 3
+        lvl += 1;    
+    }
+    // В конце добавляем один большой кусок
+    list_add(&mem->lists[lvl], get_page_ptr(mem, pn));
 }
+
 
 void buddy_free(buddy_allocator_t* mem, void* addr){
     /*
@@ -248,14 +282,17 @@ void buddy_free(buddy_allocator_t* mem, void* addr){
 
     // 0
     int pn = get_page_number(mem, addr);
-    assert(pn >= 0);
+    assert(pn >= 0);  // паникуем
 
     // 1
     int lvl = mem->state_table[pn];
-    assert(lvl >= 0);
+    assert(lvl >= 0);  // паникуем
     
     // 2
     clear_state_table_part(mem, pn);
+
+    // 3
+    add_free_block(mem, lvl, pn);
 
     
 }
