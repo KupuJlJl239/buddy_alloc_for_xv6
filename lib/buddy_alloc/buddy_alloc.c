@@ -1,13 +1,14 @@
 #include "buddy_alloc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 
 
-void assert(int condition, const char* message){  
+void my_assert(int condition, const char* message){  
     if(!condition){
         printf("%s\n", message);
-        exit(-1);
+        assert(0);
     }  
 }
 
@@ -27,8 +28,11 @@ void list_add(buddy_list_t* list, buddy_node_t* node){
 
 buddy_node_t* list_pop(buddy_list_t* list){
     buddy_node_t* res = list->first;
-    if(res)
-        list->first = list->first->next;
+    if(res){
+        assert(list->len > 0);
+        list->first = list->first->next;    
+        list->len -= 1;
+    }
     return res;
 }
 
@@ -68,7 +72,7 @@ void init_lists(buddy_allocator_t* mem){
         pages -= (1 << lvl);
     }
 
-    assert(pages < (1 << lvl), "");
+    assert(pages < (1 << lvl));
 
     // Для остальных уровней не более одного куска
     while(lvl > 0){
@@ -80,7 +84,7 @@ void init_lists(buddy_allocator_t* mem){
             curr_page += (1 << lvl) * mem->pgsize;
             pages -= (1 << lvl);
         }
-        assert(pages < (1 << lvl), "");
+        assert(pages < (1 << lvl));
     }
 }
 
@@ -90,10 +94,10 @@ void buddy_init(
     int levels, uint64_t pgsize,  // гиперпараметры 
     uint64_t pages, void* ptr     // распределяемые ресурсы
 ){
-    assert(levels > 0, "");
+    assert(levels > 0);
 
     uint64_t serv_pages = get_serv_pages(levels, pgsize, pages);
-    assert(serv_pages <= pages, "");
+    assert(serv_pages <= pages);
 
     mem->levels = levels;
     mem->pgsize = pgsize;
@@ -130,7 +134,7 @@ int find_free_level(buddy_allocator_t* mem, int lvl){
 }
 
 void buddy_devide(buddy_allocator_t* mem, buddy_node_t* node, int initial_lvl, int final_lvl ){
-    assert(initial_lvl >= final_lvl, "");
+    assert(initial_lvl >= final_lvl);
     while(initial_lvl > final_lvl){
         initial_lvl -= 1;
 
@@ -156,17 +160,17 @@ void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
     int lvl = log2(pages);
     if(lvl == -1)
         return 0;
-    assert(pages == 1 << lvl, "");
+    assert(pages == 1 << lvl);
 
     // 1
     int free_lvl = find_free_level(mem, lvl);
     if(free_lvl == -1)
         return 0;
-    assert(free_lvl >= lvl, "");
+    assert(free_lvl >= lvl);
 
     // 2
     buddy_node_t* node = list_pop(&mem->lists[free_lvl]);
-    assert(node != 0, "");
+    assert(node != 0);
 
     // 3
     buddy_devide(mem, node, free_lvl, lvl);

@@ -8,6 +8,7 @@ extern "C"{
 
 #include <cstdio>
 #include <cassert>
+#include <vector>
 
 int get_page_number(buddy_allocator_t* mem, void* page_ptr){
     int d = (char*)page_ptr - (char*)mem->data;
@@ -85,28 +86,65 @@ TEST_CASE("init"){
 
 
 TEST_CASE("bad_alloc"){
-    #define TEST_BAD_ALLOC(_levels, _pgsize, _pages, _pages_to_alloc) do{ \
+    #define TEST_BAD_ALLOC(_levels, _pgsize, _pages, ...) do{ \
         buddy_allocator_t mem; \
         void* ptr = malloc(_pgsize * _pages);  \
         buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
-        REQUIRE_EQ(buddy_alloc(&mem, _pages_to_alloc), nullptr); \
-        CHECK_EQ(check(&mem), 0);\
+        std::vector<int> arr = __VA_ARGS__; \
+        for(int i = 0; i < arr.size() - 1; i++){ \
+            CHECK_NE(buddy_alloc(&mem, arr[i]), nullptr); \
+            REQUIRE_EQ(check(&mem), 0);\
+        }\
+        CHECK_EQ(buddy_alloc(&mem, arr[arr.size()-1]), nullptr); \ 
+        REQUIRE_EQ(check(&mem), 0);\  
+        free(ptr); \
+    }while(0)
+
+    TEST_BAD_ALLOC(10, 100, 1000, {0});
+    TEST_BAD_ALLOC(10, 100, 1000, {3});
+    TEST_BAD_ALLOC(10, 100, 1000, {5});
+    TEST_BAD_ALLOC(10, 100, 1000, {6});
+    TEST_BAD_ALLOC(10, 100, 1000, {7});
+    TEST_BAD_ALLOC(10, 100, 1000, {9});
+    TEST_BAD_ALLOC(10, 100, 1000, {1023});
+    TEST_BAD_ALLOC(10, 100, 1000, {1024});
+    TEST_BAD_ALLOC(10, 100, 1000, {1025});
+    TEST_BAD_ALLOC(10, 100, 1000, {2048});
+
+    for(int lvls = 1; lvls < 10; lvls++)
+        TEST_BAD_ALLOC(lvls, 100, 1000, {1 << lvls});
+
+    TEST_BAD_ALLOC(10, 100, 1000, {1, 2, 4, 8, 16, 32, 64, 128, 256, 512});
+
+    #undef TEST_BAD_ALLOC
+}
+
+
+
+TEST_CASE("good alloc"){
+    #define TEST_GOOD_ALLOC(_levels, _pgsize, _pages, ...) do{ \
+        buddy_allocator_t mem; \
+        void* ptr = malloc(_pgsize * _pages);  \
+        buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
+        std::vector<int> arr = __VA_ARGS__; \
+        for(auto el: arr){ \
+            CHECK_NE(buddy_alloc(&mem, el), nullptr); \
+            REQUIRE_EQ(check(&mem), 0);\
+        }\
         free(ptr); \
     }while(0)
 
     for(int lvls = 1; lvls < 10; lvls++){
-        TEST_BAD_ALLOC(lvls, 100, 1000, 0);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 3);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 5);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 6);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 7);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 9);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 1023);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 1024);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 1025);
-        TEST_BAD_ALLOC(lvls, 100, 1000, 2048);
+        for(int i = 0; i < lvls; i++){
+            TEST_GOOD_ALLOC(lvls, 100, 1000, {1 << i});
+        }
     }
 
-    #undef TEST_BAD_ALLOC
+    // Тесты на выделение всех доступных страниц
+    TEST_GOOD_ALLOC(10, 100, (12 + 989), {512, 256, 128, 64, 16, 8, 4, 1});
+    TEST_GOOD_ALLOC(10, 100, (12 + 989), {1, 4, 8, 16, 64, 128, 256, 512});
+    TEST_GOOD_ALLOC(11, 100, (13 + 1024), {1024});
 
+    #undef TEST_GOOD_ALLOC
 }
+
