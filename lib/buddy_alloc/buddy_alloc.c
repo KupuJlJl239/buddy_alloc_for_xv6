@@ -183,4 +183,9 @@ void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
 }
 
 
+// Освобождение памяти
+
+
+
+
 

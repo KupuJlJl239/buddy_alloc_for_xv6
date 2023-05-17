@@ -82,4 +82,4 @@ void buddy_free(buddy_allocator_t* mem, void* addr);
 //     uint64_t free_by_size[BUDDY_LEVELS];
 // } buddy_info_t;
 
-// void buddy_info(buddy_allocator_t* mem, buddy_info_t* info);
+// void buddy_info(buddy_allocator_t* mem, uint64_t* total, uint64_t* free, uint64_t free_by_size);

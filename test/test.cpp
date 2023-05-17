@@ -8,35 +8,33 @@ extern "C"{
 
 #include <cstdio>
 
-int round_up(int x, int n){
-    int r = x % n;
-    return x - r + n;
-}
 
 TEST_CASE("init"){
-    #define TEST_INIT(_levels, _pgsize, _pages) do{ \
-        int serv_data = sizeof(buddy_list_t) * _levels + _pages;\
-        int serv_pages = round_up(serv_data, _pgsize) / _pgsize;\
+    #define TEST_INIT(_levels, _pgsize, _pages, _serv_pages, ...) do{ \
         printf(\
             "Test init(levels = %d, pgsize = %d, pages = %d) \
-            serv_data = %d bytes, %d pages", \
-            _levels, _pgsize, _pages, serv_data, serv_pages \
+            serv_data =? %d pages", \
+            _levels, _pgsize, _pages, _serv_pages \
         );\
         buddy_allocator_t mem; \
         void* ptr = malloc(_pgsize * _pages);  \
         buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
         REQUIRE_EQ(mem.levels, _levels); \
         REQUIRE_EQ(mem.pgsize, _pgsize); \
-        REQUIRE_EQ(mem.pages, _pages - serv_pages); \
+        REQUIRE_EQ(mem.pages, _pages - _serv_pages); \
         REQUIRE_EQ( \
             (char*)mem.data - (char*)ptr, \
-            serv_pages * _pgsize \
+            _serv_pages * _pgsize \
         ); \
+        uint64_t free_by_size[] = __VA_ARGS__;\
+        for(int i = 0; i < _levels; i++)\
+            CHECK_EQ(free_by_size[i], mem.lists[i].len);\
         free(ptr); \
     }while(0)
 
-    TEST_INIT(1, 110, 1000);
-    TEST_INIT(10, 110, 1000);
+    TEST_INIT(1, 100, 1000, 11, {1000 - 11});
+    TEST_INIT(2, 100, 1000, 11, {1, 494});  // 494 = (1000-11)/2
+    TEST_INIT(3, 100, 1000, 11, {1, 0, 494 / 2});
 
     #undef TEST_INIT
 }
