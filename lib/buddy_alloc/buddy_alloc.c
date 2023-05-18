@@ -217,9 +217,10 @@ int get_page_number(buddy_allocator_t* mem, void* page_ptr){
     int d = (char*)page_ptr - (char*)mem->data;
     if(d % mem->pgsize != 0)
         return -1;
-    if(!(0 <= d && d < mem->pages))
+    int res = d / mem->pgsize;
+    if(!(0 <= res && res < mem->pages))
         return -1;
-    return d / mem->pgsize;
+    return res;
 }
 
 
@@ -244,14 +245,15 @@ void add_free_block(buddy_allocator_t* mem, int lvl, uint64_t pn){
     3) Повышаем уровень lvl
     В конце добавляем один большой кусок
     */
+    assert(pn + (1 << lvl) <= mem->pages);  // кусок не должен вылезать за границы
     while(1){
         // 0
-        assert(pn & ((1LL << lvl) - 1) == 0);
+        assert((pn & ((1LL << lvl) - 1)) == 0);  // pn должен быть кратен 2 в степени lvl 
         uint64_t npn = pn ^ (1LL << lvl);  // neighbour page number
-        if(npn >= mem->pages)
-            return;
+        if(npn + (1 << lvl) > mem->pages)
+            break;
         if(mem->state_table[npn] != BUDDY_FREE)
-            return;
+            break;
 
         // 1
         buddy_node_t* n_node = get_page_ptr(mem, npn);
