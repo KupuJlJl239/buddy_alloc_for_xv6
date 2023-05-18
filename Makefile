@@ -29,6 +29,7 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
+  $K/buddy_alloc.o \
   lib/buddy_alloc/buddy_alloc.o \
 
 

@@ -1,6 +1,34 @@
+
+#include "buddy_alloc.h"
+
+void
+kinit()
+{
+  buddy_init();
+}
+
+
+
+void
+kfree(void *pa)
+{
+  buddy_free(pa);
+}
+
+
+void *
+kalloc(void)
+{
+  return buddy_alloc(1);
+}
+
+
+/*
+
 // Physical memory allocator, for user processes,
 // kernel stacks, page-table pages,
 // and pipe buffers. Allocates whole 4096-byte pages.
+
 
 #include "types.h"
 #include "param.h"
@@ -8,6 +36,7 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
+
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -80,3 +109,5 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+//*/
