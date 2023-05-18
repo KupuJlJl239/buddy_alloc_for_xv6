@@ -4,7 +4,7 @@
 #ifdef XV6
     #include "kernel/riscv.h"
     #include "kernel/defs.h"
-    void my_assert(int condition, char* message){  
+    static void my_assert(int condition, char* message){  
         if(!condition){
             panic(message);
         }  
@@ -12,7 +12,7 @@
 #else
     #include <stdio.h>
     #include <assert.h>
-    void my_assert(int condition, char* message){  
+    static void my_assert(int condition, char* message){  
         if(!condition){
             printf("%s\n", message);
             assert(0);
