@@ -1,26 +1,35 @@
 #include "buddy_alloc.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
 
 
+#ifdef XV6
+    #include "kernel/riscv.h"
+    #include "kernel/defs.h"
+    void my_assert(int condition, char* message){  
+        if(!condition){
+            panic(message);
+        }  
+    }
+#else
+    #include <stdio.h>
+    #include <assert.h>
+    void my_assert(int condition, char* message){  
+        if(!condition){
+            printf("%s\n", message);
+            assert(0);
+        }  
+    }
+#endif
 
-void my_assert(int condition, const char* message){  
-    if(!condition){
-        printf("%s\n", message);
-        assert(0);
-    }  
-}
 
 
 // Действия со списками
 
-void list_init(buddy_list_t* list){
+static void list_init(buddy_list_t* list){
     list->first = (buddy_node_t*)0;
     list->len = 0;
 }
 
-void list_add(buddy_list_t* list, buddy_node_t* node){
+static void list_add(buddy_list_t* list, buddy_node_t* node){
     node->next = list->first;
     node->prev = (buddy_node_t*)0;
     if(list->first)
@@ -29,8 +38,8 @@ void list_add(buddy_list_t* list, buddy_node_t* node){
     list->len += 1;
 }
 
-void list_remove(buddy_list_t* list, buddy_node_t* node){
-    assert(list->len > 0);
+static void list_remove(buddy_list_t* list, buddy_node_t* node){
+    my_assert(list->len > 0, "");
     buddy_node_t* prev = node->prev;
     buddy_node_t* next = node->next;
     if(prev && next){
@@ -50,7 +59,7 @@ void list_remove(buddy_list_t* list, buddy_node_t* node){
     list->len--;   
 }
 
-buddy_node_t* list_pop(buddy_list_t* list){
+static buddy_node_t* list_pop(buddy_list_t* list){
     buddy_node_t* res = list->first;
     if(res){
         list_remove(list, res);
@@ -61,25 +70,20 @@ buddy_node_t* list_pop(buddy_list_t* list){
 
 
 // Сколько страниц нужно зарезервировать под служебные данные?
-uint64_t get_serv_pages(int levels, uint64_t pgsize, uint64_t pages){
+static uint64_t get_serv_pages(int levels, uint64_t pgsize, uint64_t pages){
     uint64_t serv_size = levels * sizeof(buddy_list_t) + pages;
     return serv_size / pgsize + 1;
 }
 
-// void* get_page_ptr(buddy_allocator_t* mem, int lvl, int number){
-//     return (char*)mem->data + (mem->pgsize << lvl) * number;
-// }
-
-
 
 // Инициализация аллокатора
 
-void init_state_table(buddy_allocator_t* mem){
+static void init_state_table(buddy_allocator_t* mem){
     for(int i = 0; i < mem->pages; i++)
         mem->state_table[i] = BUDDY_FREE;
 }
 
-void init_lists(buddy_allocator_t* mem){
+static void init_lists(buddy_allocator_t* mem){
     int lvl = mem->levels - 1;
     buddy_list_t* list = &mem->lists[lvl];
     list_init(list);
@@ -94,7 +98,7 @@ void init_lists(buddy_allocator_t* mem){
         pages -= (1 << lvl);
     }
 
-    assert(pages < (1 << lvl));
+    my_assert(pages < (1 << lvl), "");
 
     // Для остальных уровней не более одного куска
     while(lvl > 0){
@@ -106,20 +110,20 @@ void init_lists(buddy_allocator_t* mem){
             curr_page += (1 << lvl) * mem->pgsize;
             pages -= (1 << lvl);
         }
-        assert(pages < (1 << lvl));
+        my_assert(pages < (1 << lvl), "");
     }
 }
 
 
-void buddy_init(
+void lib_buddy_init(
     buddy_allocator_t* mem, 
     int levels, uint64_t pgsize,  // гиперпараметры 
     uint64_t pages, void* ptr     // распределяемые ресурсы
 ){
-    assert(levels > 0);
+    my_assert(levels > 0, "");
 
     uint64_t serv_pages = get_serv_pages(levels, pgsize, pages);
-    assert(serv_pages <= pages);
+    my_assert(serv_pages <= pages, "");
 
     mem->levels = levels;
     mem->pgsize = pgsize;
@@ -138,7 +142,7 @@ void buddy_init(
 
 // Выделение памяти
 
-int buddy_log2(uint64_t n){
+static int buddy_log2(uint64_t n){
     for(int log = 0; log < sizeof(n) * 8; log++){
         if(n == (1 << log))
             return log;   
@@ -146,7 +150,7 @@ int buddy_log2(uint64_t n){
     return -1;
 }
 
-int find_free_level(buddy_allocator_t* mem, int lvl){
+static int find_free_level(buddy_allocator_t* mem, int lvl){
     while(lvl < mem->levels){
         if(mem->lists[lvl].len > 0)
             return lvl;
@@ -155,8 +159,8 @@ int find_free_level(buddy_allocator_t* mem, int lvl){
     return -1;
 }
 
-void buddy_devide(buddy_allocator_t* mem, buddy_node_t* node, int initial_lvl, int final_lvl ){
-    assert(initial_lvl >= final_lvl);
+static void buddy_devide(buddy_allocator_t* mem, buddy_node_t* node, int initial_lvl, int final_lvl ){
+    my_assert(initial_lvl >= final_lvl, "");
     while(initial_lvl > final_lvl){
         initial_lvl -= 1;
 
@@ -166,7 +170,7 @@ void buddy_devide(buddy_allocator_t* mem, buddy_node_t* node, int initial_lvl, i
     }
 }
 
-void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
+void* lib_buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
     /*
     0) Получаем по количеству страниц pages уровень куска (=log(pages)), который нужно выделить.
         Проверяем корректность запроса.
@@ -183,17 +187,17 @@ void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
     int lvl = buddy_log2(pages);
     if(lvl == -1)
         return 0;
-    assert(pages == 1 << lvl);
+    my_assert(pages == 1 << lvl, "");
 
     // 1
     int free_lvl = find_free_level(mem, lvl);
     if(free_lvl == -1)
         return 0;
-    assert(free_lvl >= lvl);
+    my_assert(free_lvl >= lvl, "");
 
     // 2
     buddy_node_t* node = list_pop(&mem->lists[free_lvl]);
-    assert(node != 0);
+    my_assert(node != 0, "");
 
     // 3
     buddy_devide(mem, node, free_lvl, lvl);
@@ -213,7 +217,7 @@ void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
 // Освобождение памяти
 
 
-int get_page_number(buddy_allocator_t* mem, void* page_ptr){
+static int get_page_number(buddy_allocator_t* mem, void* page_ptr){
     int d = (char*)page_ptr - (char*)mem->data;
     if(d % mem->pgsize != 0)
         return -1;
@@ -224,20 +228,20 @@ int get_page_number(buddy_allocator_t* mem, void* page_ptr){
 }
 
 
-void* get_page_ptr(buddy_allocator_t* mem, int page_number){
+static void* get_page_ptr(buddy_allocator_t* mem, int page_number){
     return (char*)mem->data + mem->pgsize * page_number;
 }
 
-void clear_state_table_part(buddy_allocator_t* mem, uint64_t pn){
-    assert(mem->state_table[pn] >= 0);
+static void clear_state_table_part(buddy_allocator_t* mem, uint64_t pn){
+    my_assert(mem->state_table[pn] >= 0, "");
     uint64_t size = 1 << mem->state_table[pn];
     for(int i = 0; i < size; i++){
-        assert(mem->state_table[pn + i] != BUDDY_FREE);
+        my_assert(mem->state_table[pn + i] != BUDDY_FREE, "");
         mem->state_table[pn + i] = BUDDY_FREE;
     }
 }
 
-void add_free_block(buddy_allocator_t* mem, int lvl, uint64_t pn){
+static void add_free_block(buddy_allocator_t* mem, int lvl, uint64_t pn){
     /*
     До тех пор, пока сосед свободен, объединяемся с ним:
     1) Выкидываем соседа из списка
@@ -245,10 +249,10 @@ void add_free_block(buddy_allocator_t* mem, int lvl, uint64_t pn){
     3) Повышаем уровень lvl
     В конце добавляем один большой кусок
     */
-    assert(pn + (1 << lvl) <= mem->pages);  // кусок не должен вылезать за границы
+    my_assert(pn + (1 << lvl) <= mem->pages, "");  // кусок не должен вылезать за границы
     while(1){
         // 0
-        assert((pn & ((1LL << lvl) - 1)) == 0);  // pn должен быть кратен 2 в степени lvl 
+        my_assert((pn & ((1LL << lvl) - 1)) == 0, "");  // pn должен быть кратен 2 в степени lvl 
         uint64_t npn = pn ^ (1LL << lvl);  // neighbour page number
         if(npn + (1 << lvl) > mem->pages)
             break;
@@ -271,7 +275,7 @@ void add_free_block(buddy_allocator_t* mem, int lvl, uint64_t pn){
 }
 
 
-void buddy_free(buddy_allocator_t* mem, void* addr){
+void lib_buddy_free(buddy_allocator_t* mem, void* addr){
     /*
     0) По адресу получаем корректный номер страницы, или понимаем что адрес
         неправильный
@@ -284,11 +288,11 @@ void buddy_free(buddy_allocator_t* mem, void* addr){
 
     // 0
     int pn = get_page_number(mem, addr);
-    assert(pn >= 0);  // паникуем
+    my_assert(pn >= 0, "");  // паникуем
 
     // 1
     int lvl = mem->state_table[pn];
-    assert(lvl >= 0);  // паникуем
+    my_assert(lvl >= 0, "");  // паникуем
     
     // 2
     clear_state_table_part(mem, pn);

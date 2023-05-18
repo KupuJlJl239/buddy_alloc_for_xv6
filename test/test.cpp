@@ -70,7 +70,7 @@ TEST_CASE("init"){
     #define TEST_INIT(_levels, _pgsize, _pages, _serv_pages, ...) do{ \
         buddy_allocator_t mem; \
         void* ptr = malloc(_pgsize * _pages);  \
-        buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
+        lib_buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
         REQUIRE_EQ(mem.levels, _levels); \
         REQUIRE_EQ(mem.pgsize, _pgsize); \
         REQUIRE_EQ(mem.pages, _pages - _serv_pages); \
@@ -97,14 +97,14 @@ TEST_CASE("bad_alloc"){
     #define TEST_BAD_ALLOC(_levels, _pgsize, _pages, ...) do{ \
         buddy_allocator_t mem; \
         void* ptr = malloc(_pgsize * _pages);  \
-        buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
+        lib_buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
         std::vector<int> arr = __VA_ARGS__; \
         for(int i = 0; i < arr.size() - 1; i++){ \
-            CHECK_NE(buddy_alloc(&mem, arr[i]), nullptr); \
+            CHECK_NE(lib_buddy_alloc(&mem, arr[i]), nullptr); \
             REQUIRE_EQ(check(&mem), 0);\
         }\
-        CHECK_EQ(buddy_alloc(&mem, arr[arr.size()-1]), nullptr); \ 
-        REQUIRE_EQ(check(&mem), 0);\  
+        CHECK_EQ(lib_buddy_alloc(&mem, arr[arr.size()-1]), nullptr); \
+        REQUIRE_EQ(check(&mem), 0);\
         free(ptr); \
     }while(0)
 
@@ -133,10 +133,10 @@ TEST_CASE("good alloc"){
     #define TEST_GOOD_ALLOC(_levels, _pgsize, _pages, ...) do{ \
         buddy_allocator_t mem; \
         void* ptr = malloc(_pgsize * _pages);  \
-        buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
+        lib_buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
         std::vector<int> arr = __VA_ARGS__; \
         for(auto el: arr){ \
-            CHECK_NE(buddy_alloc(&mem, el), nullptr); \
+            CHECK_NE(lib_buddy_alloc(&mem, el), nullptr); \
             REQUIRE_EQ(check(&mem), 0);\
         }\
         free(ptr); \
@@ -168,17 +168,17 @@ TEST_CASE("free"){
     #define TEST_ALLOC_FREE(_levels, _pgsize, _pages, ...) do{ \
         buddy_allocator_t mem; \
         void* space = malloc(_pgsize * _pages);  \
-        buddy_init(&mem, _levels, _pgsize, _pages, space); \
+        lib_buddy_init(&mem, _levels, _pgsize, _pages, space); \
         std::vector<int> arr = __VA_ARGS__; \
         std::vector<void*> ptrs;\
         for(auto el: arr){ \
-            void* ptr = buddy_alloc(&mem, el);\
+            void* ptr = lib_buddy_alloc(&mem, el);\
             ptrs.push_back(ptr); \
             REQUIRE_NE(ptr, nullptr); \
             REQUIRE_EQ(check(&mem), 0);\
         }\
         for(auto ptr: ptrs){ \
-            buddy_free(&mem, ptr);\
+            lib_buddy_free(&mem, ptr);\
             REQUIRE_EQ(check(&mem), 0);\
         }\
         CHECK_EQ(pages_in_use(&mem), 0);\

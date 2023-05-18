@@ -1,5 +1,11 @@
 #pragma once
-#include "inttypes.h"
+
+#ifdef XV6
+    #include "kernel/types.h"
+    typedef uint64 uint64_t;
+#else
+    #include <stdint.h>
+#endif
 
 
 enum BuddyTableState{
@@ -66,21 +72,12 @@ typedef struct {
 
 
 
-void buddy_init(
+void lib_buddy_init(
     buddy_allocator_t* mem, 
     int levels, uint64_t pgsize,  // гиперпараметры 
     uint64_t pages, void* ptr     // распределяемые ресурсы
 );
 
-void* buddy_alloc(buddy_allocator_t* mem, uint64_t pages);
-void buddy_free(buddy_allocator_t* mem, void* addr);
+void* lib_buddy_alloc(buddy_allocator_t* mem, uint64_t pages);
+void lib_buddy_free(buddy_allocator_t* mem, void* addr);
 
-
-
-// typedef struct {
-//     uint64_t total;
-//     uint64_t free;
-//     uint64_t free_by_size[BUDDY_LEVELS];
-// } buddy_info_t;
-
-// void buddy_info(buddy_allocator_t* mem, uint64_t* total, uint64_t* free, uint64_t free_by_size);
