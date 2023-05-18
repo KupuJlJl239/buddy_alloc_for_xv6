@@ -1,5 +1,7 @@
 
-#include "buddy_alloc.h"
+#include "types.h"
+#include "riscv.h"
+#include "defs.h"
 
 void
 kinit()
