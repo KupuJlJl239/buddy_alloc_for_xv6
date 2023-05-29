@@ -32,7 +32,7 @@ int check(buddy_allocator_t* mem){
         my_state_table[i] = BUDDY_USED;
     }
     for(int lvl = 0; lvl < mem->levels; lvl++){
-        buddy_node_t* curr = mem->lists[lvl].first;
+        buddy_free_block_t* curr = mem->lists[lvl].first;
         while(curr != nullptr){
             int page_number = get_page_number(mem, (void*)curr);
             assert(page_number != -1);

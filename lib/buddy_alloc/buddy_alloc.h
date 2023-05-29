@@ -4,7 +4,7 @@
 Реализация buddy-аллокатора на языке C (см. https://en.wikipedia.org/wiki/Buddy_memory_allocation), написанная для xv6.
 
 Типы данных:
-buddy_node_t, buddy_list_t      не нужны для внешнего использования, хранят метаинформацию
+buddy_free_block_t, buddy_list_t      не нужны для внешнего использования, хранят метаинформацию
 buddy_allocator_t               тип, представляющий аллокатор
 
 Функции:
@@ -43,18 +43,20 @@ lib_buddy_free      освобождение памяти
 Свободные блоки в каждом списке расположены не обязательно по порядку.
 */
 
+struct buddy_list;
+
 // Лежит в начале каждого свободного блока
-typedef struct buddy_node{
-    struct buddy_node* next;
-    struct buddy_node* prev;
-    int level;                  // уровень свободного блока
-} buddy_node_t;
+typedef struct buddy_free_block{
+    struct buddy_free_block* next;
+    struct buddy_free_block* prev;
+    struct buddy_list* list;
+    int level;
+} buddy_free_block_t;
 
 // Объединяет все свободные блоки уровня level
-typedef struct {
-    buddy_node_t* first;
+typedef struct buddy_list{
+    buddy_free_block_t head;
     uint64_t len;   // длина списков = число свободных блоков уровня level
-    int level;
 } buddy_list_t;
 
 
@@ -102,7 +104,7 @@ typedef struct {
 // Возвращает -1, если метаданные не влезли в память (бывает если levels велико или pgsize мало), иначе 0
 int lib_buddy_init(
     buddy_allocator_t* mem, 
-    int levels,         // максимальное количество уровней в аллокаторе. Если levels=-1, определяется автоматически
+    int levels,         // количество уровней в аллокаторе
     uint64_t pgsize,    // размер страницы
     uint64_t pages,     // число страниц
     void* ptr           // распределяемые ресурсы
