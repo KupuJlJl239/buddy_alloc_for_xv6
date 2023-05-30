@@ -1,7 +1,12 @@
 #include "buddy_alloc.h"
 
 
-// Удобная функция для отлова ошибок или аварийного завершения
+// Функция для аварийного завершения в случае ошибки пользователя
+static void my_assert(int condition, char* message);
+
+// ASSERT(condition) - это макрос для проверки инвариантов внутри алгоритма
+
+
 #ifdef XV6
     #include "kernel/riscv.h"
     #include "kernel/defs.h"
@@ -10,6 +15,13 @@
             panic(message);
         }  
     }
+    #define ASSERT(condition) do{\
+        if(!(condition)){\
+            printf("assertion FAILED on line %d\n", __LINE__);\
+            panic("buddy allocation\n");\
+        }\
+    }while(0)
+    
 #else
     #include <stdio.h>
     #include <assert.h>
@@ -19,6 +31,12 @@
             assert(0);
         }  
     }
+    #define ASSERT(condition) do{\
+        if(!(condition)){\
+            printf("assertion FAILED on line %d\n", __LINE__);\
+            assert(0);\
+        }\
+    }while(0)
 #endif
 
 
@@ -37,7 +55,7 @@ static void list_init(buddy_list_t* list, int level){
 static void insert_block(buddy_free_block_t* base_block, buddy_free_block_t* new_block){
     buddy_list_t* list = base_block->list;
 
-    my_assert(list->head.level == base_block->level, "");
+    ASSERT(list->head.level == base_block->level);
     new_block->level = list->head.level;
     new_block->list = list;
 
@@ -51,8 +69,8 @@ static void insert_block(buddy_free_block_t* base_block, buddy_free_block_t* new
 
 static void remove_block(buddy_free_block_t* block){
     buddy_list_t* list = block->list;
-    my_assert(block->prev != 0, "");
-    my_assert(list->len > 0, "");
+    ASSERT(block->prev != 0);
+    ASSERT(list->len > 0);
 
     buddy_free_block_t* prev = block->prev;
     buddy_free_block_t* next = block->next;
@@ -108,6 +126,7 @@ static uint64_t get_serv_pages(int levels, uint64_t pgsize, uint64_t pages){
 static void init_state_table(buddy_allocator_t* mem){
     for(int i = 0; i < mem->pages; i++)
         mem->state_table[i] = BUDDY_NOTHING;
+    // printf("init state table, %d\n", BUDDY_NOTHING);
 }
 
 // Разпихивает все блоки по спискам свободных блоков
@@ -126,7 +145,7 @@ static void init_lists(buddy_allocator_t* mem){
         pages -= (1 << lvl);
     }
 
-    my_assert(pages < (1 << lvl), "");
+    ASSERT(pages < (1 << lvl));
 
     // Для остальных уровней не более одного куска
     while(lvl > 0){
@@ -138,7 +157,7 @@ static void init_lists(buddy_allocator_t* mem){
             curr_page += (1 << lvl) * mem->pgsize;
             pages -= (1 << lvl);
         }
-        my_assert(pages < (1 << lvl), "");
+        ASSERT(pages < (1 << lvl));
     }
 }
 
@@ -148,8 +167,8 @@ int lib_buddy_init(
     int levels, uint64_t pgsize,  // гиперпараметры 
     uint64_t pages, void* ptr     // распределяемые ресурсы
 ){
-    my_assert(levels > 0, "");
-    if(sizeof(buddy_free_block_t) < pgsize)
+    ASSERT(levels > 0);
+    if(sizeof(buddy_free_block_t) > pgsize)
         return -1;
 
     mem->levels = levels;
@@ -159,11 +178,14 @@ int lib_buddy_init(
     if(serv_pages > pages)
         return -1;
 
+
     mem->lists = (buddy_list_t*)ptr;
     mem->state_table = (char*) ptr + sizeof(buddy_list_t) * mem->levels;
 
     mem->pages = pages - serv_pages;
     mem->data = (char*) ptr + serv_pages * pgsize;
+
+    // printf("buddy init: levels=%d, pgsize=%d, pages=%d, free_pages=%d\n", levels, pgsize, pages, mem->pages);
 
     init_state_table(mem);
     init_lists(mem);
@@ -203,7 +225,7 @@ static buddy_free_block_t* find_free_block(buddy_allocator_t* mem, int lvl){
 */
 static void* buddy_devide(buddy_allocator_t* mem, buddy_free_block_t* free_block, int final_lvl ){
     int initial_lvl = free_block->level;
-    my_assert(initial_lvl >= final_lvl, "");
+    ASSERT(initial_lvl >= final_lvl);
 
     remove_block(free_block);
     while(initial_lvl > final_lvl){
@@ -232,20 +254,22 @@ void* lib_buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
     int lvl = buddy_log2(pages);
     if(lvl == -1)
         return 0;
-    my_assert(pages == 1 << lvl, "");
+    ASSERT(pages == 1 << lvl);
+    if(lvl >= mem->levels)
+        return 0;
 
     // 1
     buddy_free_block_t* free_block = find_free_block(mem, lvl);
     if(free_block == 0)
         return 0;
-    my_assert(free_block->level >= lvl, "");
+    ASSERT(free_block->level >= lvl);
 
     // 3
     void* res_block = buddy_devide(mem, free_block, lvl);
 
     // 4
     int pn = get_page_number(mem, res_block);
-    my_assert(pn >= 0, "");
+    ASSERT(pn >= 0);
     mem->state_table[pn] = lvl;
 
     // 5
@@ -258,30 +282,15 @@ void* lib_buddy_alloc(buddy_allocator_t* mem, uint64_t pages){
 ///   Освобождение памяти   ///
 ///////////////////////////////
 
-static int is_neighbour_a_free_block(buddy_allocator_t* mem, int lvl, uint64_t npn){
-    /*
-
-    */
-    if(npn + (1 << lvl) > mem->pages)   // что если сосед вообще не существует? (выходит за границы области аллокатора) 
-        return 0;
-    if(mem->state_table[npn] != BUDDY_NOTHING)
-        return 0;
-}
 
 int block_exists(buddy_allocator_t* mem, int pn, int lvl){
     if(!(0 <= lvl && lvl < mem->levels))    // уровень блока корректен
         return 0;
-    if(pn & ((1 << lvl) - 1) != 0)  // номер страницы кратен 2 в степени lvl
+    if((pn & ((1 << lvl) - 1)) != 0)  // номер страницы кратен 2 в степени lvl
         return 0;
     if(!(0 <= pn && pn + (1 << lvl) <= mem->pages))   // блок не вылезает за границы
         return 0;
     return 1;
-}
-
-uint64_t get_neighbour_page_number(buddy_allocator_t* mem, int lvl, uint64_t pn){
-    uint64_t npn = pn ^ (1LL << lvl);   // neighbour page number - номер первой страницы соседнего куска
-    if(!block_exists(mem, npn, lvl))    // что если сосед вообще не существует?
-        return ;
 }
 
 static void add_free_block(buddy_allocator_t* mem,  uint64_t pn, int lvl){
@@ -302,11 +311,11 @@ static void add_free_block(buddy_allocator_t* mem,  uint64_t pn, int lvl){
             Тут содержится уровень этого свободного блока. Если он совпадает с уровнем соседа, то сосед свободен, 
             иначе он частично занят (быть больше он не может по соображениям выше).
     */
-    my_assert(lvl < mem->levels, "");
-    my_assert(block_exists(mem, pn, lvl), "");
+    ASSERT(lvl < mem->levels);
+    ASSERT(block_exists(mem, pn, lvl));
     while(lvl < mem->levels){
         // 0
-        my_assert(block_exists(mem, pn, lvl), "");
+        ASSERT(block_exists(mem, pn, lvl));
         uint64_t npn = pn ^ (1LL << lvl);   // neighbour page number - номер первой страницы соседнего куска
         if(!block_exists(mem, npn, lvl))    // что если сосед вообще не существует?
             break;
@@ -317,7 +326,7 @@ static void add_free_block(buddy_allocator_t* mem,  uint64_t pn, int lvl){
 
         // б)
         buddy_free_block_t* free_block = get_page_ptr(mem, npn);
-        my_assert(free_block->level <= lvl, "");
+        ASSERT(free_block->level <= lvl);
         if(free_block->level < lvl) // сосед частично занят
             break;
 
@@ -348,17 +357,18 @@ void lib_buddy_free(buddy_allocator_t* mem, void* addr){
 
     // 0
     int pn = get_page_number(mem, addr);
-    my_assert(pn >= 0, "");  // паникуем
+    my_assert(pn != -1, "buddy_free - address is not correct!");
 
     // 1
     int lvl = mem->state_table[pn];
-    my_assert(lvl >= 0, "");  // паникуем
+    my_assert(lvl >= 0, "buddy_free - address is not correct!");
+    ASSERT(lvl < mem->levels);
     
     // 2
     mem->state_table[pn] = BUDDY_NOTHING;
 
     // 3
-    add_free_block(mem, lvl, pn);  
+    add_free_block(mem, pn, lvl);  
 }
 
 

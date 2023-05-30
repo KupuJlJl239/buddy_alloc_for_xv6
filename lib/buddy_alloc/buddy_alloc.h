@@ -61,9 +61,9 @@ typedef struct buddy_list{
 
 
 
-enum BuddyTableState{
-    BUDDY_NOTHING = -1,
-};
+
+#define BUDDY_NOTHING -1
+
 
 
 
@@ -115,4 +115,7 @@ void* lib_buddy_alloc(buddy_allocator_t* mem, uint64_t pages);
 
 // Освобождает ранее выделенный блок. Если не удалось - паникует!
 void lib_buddy_free(buddy_allocator_t* mem, void* addr);
+
+
+// void lib_buddy_stat(buddy_allocator_t* mem, )
 
