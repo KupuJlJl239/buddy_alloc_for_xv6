@@ -373,3 +373,26 @@ void lib_buddy_free(buddy_allocator_t* mem, void* addr){
 
 
 
+////////////////////////////////////
+///   Статистика об аллокаторе   ///
+////////////////////////////////////
+
+
+void lib_buddy_stat(buddy_allocator_t* mem, uint64_t* total, uint64_t* free, uint64_t* free_by_size){
+    if(total){
+        int serv_pages = ((char*)mem->data - (char*)mem->lists)/mem->pgsize;
+        *total = mem->pages + serv_pages;
+    }
+
+    uint64_t free_pages = 0;
+    for(int lvl = 0; lvl < mem->levels; lvl++){
+        uint64_t count = mem->lists[lvl].len;
+        free_pages += count << lvl;
+        if(free_by_size)
+            free_by_size[lvl] = count;
+    }
+
+    if(free)
+        *free = free_pages;
+}
+

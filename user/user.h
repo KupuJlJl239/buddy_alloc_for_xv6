@@ -1,4 +1,5 @@
 struct stat;
+struct buddy_info;
 
 // system calls
 int fork(void);
@@ -23,6 +24,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int dummy(void);
+int buddy_info(struct buddy_info*);
 
 // ulib.c
 int stat(const char*, struct stat*);

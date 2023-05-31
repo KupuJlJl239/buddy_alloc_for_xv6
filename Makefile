@@ -137,6 +137,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_ps\
 	$U/_zombie\
+	$U/_buddy_info\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -145,7 +146,7 @@ fs.img: mkfs/mkfs README $(UPROGS)
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
-	*/*.o */*.d */*.asm */*.sym \
+	*/*.o */*.d */*.asm */*.sym lib/*/*.o lib/*/*.d \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
 	mkfs/mkfs .gdbinit \
         $U/usys.S \

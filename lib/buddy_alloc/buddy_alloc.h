@@ -116,6 +116,6 @@ void* lib_buddy_alloc(buddy_allocator_t* mem, uint64_t pages);
 // Освобождает ранее выделенный блок. Если не удалось - паникует!
 void lib_buddy_free(buddy_allocator_t* mem, void* addr);
 
-
-// void lib_buddy_stat(buddy_allocator_t* mem, )
+// Возвращает статистику об аллокаторе
+void lib_buddy_stat(buddy_allocator_t* mem, uint64_t* total, uint64_t* free, uint64_t* free_by_size);
 

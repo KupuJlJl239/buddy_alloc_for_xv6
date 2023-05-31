@@ -7,6 +7,7 @@ struct proc;
 struct spinlock;
 struct sleeplock;
 struct stat;
+struct buddy_info;
 struct superblock;
 
 // bio.c
