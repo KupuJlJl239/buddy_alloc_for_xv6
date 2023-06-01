@@ -1,3 +1,5 @@
+#pragma once
+
 struct buf;
 struct context;
 struct file;
@@ -9,6 +11,15 @@ struct sleeplock;
 struct stat;
 struct buddy_info;
 struct superblock;
+
+enum SlabStructs{
+    // virtio.h
+    SLAB_virtq_desc,        
+    SLAB_virtq_avail,
+    SLAB_virtq_used,
+    // pipe.c
+    SLAB_pipe,
+};
 
 // bio.c
 void            binit(void);
@@ -65,10 +76,15 @@ void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
 
-//buddy_alloc.c
-void buddy_init();
-void* buddy_alloc(uint64 pages);
-void buddy_free(void* addr);
+// buddy_alloc.c
+void            buddy_init();
+void*           buddy_alloc(uint64 pages);
+void            buddy_free(void* addr);
+
+// slab_alloc.c
+void            slab_init();
+void*           slab_alloc(int slab_struct);
+void            slab_free(int slab_struct, void* ptr);
 
 // log.c
 void            initlog(int, struct superblock*);

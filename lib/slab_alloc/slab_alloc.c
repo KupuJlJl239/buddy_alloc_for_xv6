@@ -2,7 +2,7 @@
 
 
 // Функция для аварийного завершения в случае ошибки пользователя
-static void my_assert(int condition, char* message);
+// static void my_assert(int condition, char* message);
 
 // ASSERT(condition) - это макрос для проверки инвариантов внутри алгоритма
 
@@ -10,15 +10,15 @@ static void my_assert(int condition, char* message);
 #ifdef XV6
     #include "kernel/riscv.h"
     #include "kernel/defs.h"
-    static void my_assert(int condition, char* message){  
-        if(!condition){
-            panic(message);
-        }  
-    }
+    // static void my_assert(int condition, char* message){  
+    //     if(!condition){
+    //         panic(message);
+    //     }  
+    // }
     #define ASSERT(condition) do{\
         if(!(condition)){\
             printf("assertion FAILED on line %d\n", __LINE__);\
-            panic("buddy allocation\n");\
+            panic("slab allocation\n");\
         }\
     }while(0)
     
@@ -100,6 +100,18 @@ static void list_add(slab_list_t* list, slab_page_t* new_block){
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+///   Получение по странице начала битмапов и ячеек для выделяемых структур  ///
+////////////////////////////////////////////////////////////////////////////////
+
+static char* bitmaps_ptr(slab_alloc_t* slab, slab_page_t* page){
+    return (char*)page + sizeof(slab_page_t);
+}
+
+static void* cells_ptr(slab_alloc_t* slab, slab_page_t* page){
+    return (char*)page + sizeof(slab_page_t) + slab->cells;
+}
+
 ////////////////////////////////////
 ///   Инициализация аллокатора   ///
 ////////////////////////////////////
@@ -148,15 +160,9 @@ void lib_slab_init(
 //////////////////////////// 
 
 
-char* bitmaps_ptr(slab_alloc_t* slab, slab_page_t* page){
-    return (char*)page + sizeof(slab_page_t);
-}
 
-void* cells_ptr(slab_alloc_t* slab, slab_page_t* page){
-    return (char*)page + sizeof(slab_page_t) + slab->cells;
-}
 
-slab_page_t* new_page(slab_alloc_t* slab){
+static slab_page_t* new_page(slab_alloc_t* slab){
     slab_page_t* page = slab->buddy_alloc(1);
     ASSERT(page != 0);
     char* bitmaps = bitmaps_ptr(slab, page);
@@ -172,7 +178,7 @@ slab_page_t* new_page(slab_alloc_t* slab){
     return page;
 }
 
-void* page_alloc_cell(slab_alloc_t* slab, slab_page_t* page){
+static void* page_alloc_cell(slab_alloc_t* slab, slab_page_t* page){
     ASSERT(page->used_cells < slab->cells);
 
     char* bitmaps = bitmaps_ptr(slab, page);
@@ -205,7 +211,6 @@ void* lib_slab_alloc(slab_alloc_t* slab){
 
     ASSERT(cells == -1);
     slab_page_t* page = new_page(slab);
-    char* bitmaps = bitmaps_ptr(slab, page);
     return page_alloc_cell(slab, page);
 }
 
@@ -215,7 +220,7 @@ void* lib_slab_alloc(slab_alloc_t* slab){
 ///////////////////////////////
 
 
-void page_clean_cell(slab_alloc_t* slab, slab_page_t* page, void* ptr){
+static void page_clean_cell(slab_alloc_t* slab, slab_page_t* page, void* ptr){
     char* bitmaps = bitmaps_ptr(slab, page);
     void* cells = cells_ptr(slab, page);
     int i = ((char*)ptr - (char*)cells) / slab->ssize;
@@ -230,6 +235,9 @@ NB!   Корректность адреса не проверяется.
 void lib_slab_free(slab_alloc_t* slab, void* ptr){
     slab_page_t* page = slab->pgbegin(ptr);
     list_remove(page);
-    list_add(&slab->lists[page->used_cells - 1], page);
+    if(page->used_cells == 1)
+        slab->buddy_free(page);
+    else 
+        list_add(&slab->lists[page->used_cells - 1], page);
     page_clean_cell(slab, page, ptr);
 }

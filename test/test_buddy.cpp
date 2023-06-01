@@ -9,6 +9,13 @@ extern "C"{
 #include <cassert>
 #include <vector>
 #include <list>
+#include <random>
+
+
+void randmem(void* ptr, uint size){
+    for(int i = 0; i < size; i++)
+        ((char*)ptr)[i] = rand();
+}
 
 // Преобразует указатель на страницу в её номер. Если указатель не соответствует существующей странице, возвращает -1.
 static int get_page_number(buddy_allocator_t* mem, void* page_ptr){
@@ -151,8 +158,10 @@ TEST_CASE("bad_alloc"){
         lib_buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
         std::vector<int> arr = __VA_ARGS__; \
         for(int i = 0; i < arr.size() - 1; i++){ \
-            CHECK_NE(lib_buddy_alloc(&mem, arr[i]), nullptr); \
-            check(&mem);\
+            void* ptr = lib_buddy_alloc(&mem, arr[i]); \
+            CHECK_NE(ptr, nullptr); \
+            randmem(ptr, mem.pgsize * arr[i]); \
+            check(&mem); \
         }\
         CHECK_EQ(lib_buddy_alloc(&mem, arr[arr.size()-1]), nullptr); \
         check(&mem);\
@@ -186,8 +195,10 @@ TEST_CASE("good alloc"){
         lib_buddy_init(&mem, _levels, _pgsize, _pages, ptr); \
         std::vector<int> arr = __VA_ARGS__; \
         for(auto el: arr){ \
-            CHECK_NE(lib_buddy_alloc(&mem, el), nullptr); \
-            check(&mem);\
+            void* ptr = lib_buddy_alloc(&mem, el); \
+            CHECK_NE(ptr, nullptr); \
+            randmem(ptr, mem.pgsize * el); \
+            check(&mem); \
         }\
         free(ptr); \
     }while(0)
@@ -212,7 +223,8 @@ TEST_CASE(""){
     
     REQUIRE_EQ(mem.mem.pages, 1000);
     for(int i = 0; i < 1000; i++){
-        mem.alloc(1);
+        void* ptr = mem.alloc(1);
+        randmem(ptr, mem.mem.pgsize);
     }
 
     for(int i = 0; i < 1000; i++){

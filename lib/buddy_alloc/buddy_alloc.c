@@ -69,6 +69,8 @@ static void insert_block(buddy_free_block_t* base_block, buddy_free_block_t* new
 
 static void remove_block(buddy_free_block_t* block){
     buddy_list_t* list = block->list;
+    ASSERT(block != &block->list->head);
+    // printf("%d\n", block->level);
     ASSERT(block->prev != 0);
     ASSERT(list->len > 0);
 

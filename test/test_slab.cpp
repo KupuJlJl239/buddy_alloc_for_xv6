@@ -2,6 +2,7 @@
 // #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 // #include "doctest.h"
 #include <vector>
+#include <random>
 
 extern "C"{
     #include "buddy_alloc.h"
@@ -25,7 +26,10 @@ void* pgbegin(void* ptr){
     return (char*)ptr - d % mem.pgsize;
 }
 
-
+void randmem(void* ptr, uint size){
+    for(int i = 0; i < size; i++)
+        ((char*)ptr)[i] = rand();
+}
 
 int main(){
     int levels = 10;
@@ -35,11 +39,13 @@ int main(){
     lib_buddy_init(&mem, levels, pgsize, pages, &data[0]);
 
     slab_alloc_t slab;
-    lib_slab_init(&slab, pgsize, 10, buddy_alloc, buddy_free, pgbegin);
+    uint ssize = 10;
+    lib_slab_init(&slab, pgsize, ssize, buddy_alloc, buddy_free, pgbegin);
 
     std::vector<void*> v(10000);
     for(int i = 0; i < 10000; i++){
         v[i] = lib_slab_alloc(&slab);
+        randmem(v[i], ssize);
     }
     for(int i = 0; i < 10000; i++){
         lib_slab_free(&slab, v[i]);

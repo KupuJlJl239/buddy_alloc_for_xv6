@@ -31,6 +31,8 @@ OBJS = \
   $K/virtio_disk.o \
   $K/buddy_alloc.o \
   lib/buddy_alloc/buddy_alloc.o \
+  $K/slab_alloc.o \
+  lib/slab_alloc/slab_alloc.o \
 
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
