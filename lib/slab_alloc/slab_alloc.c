@@ -105,11 +105,11 @@ static void list_add(slab_list_t* list, slab_page_t* new_block){
 ////////////////////////////////////////////////////////////////////////////////
 
 static char* bitmaps_ptr(slab_alloc_t* slab, slab_page_t* page){
-    return (char*)page + sizeof(slab_page_t);
+    return (char*)page + sizeof(slab_page_t) + slab->cells * slab->ssize;
 }
 
 static void* cells_ptr(slab_alloc_t* slab, slab_page_t* page){
-    return (char*)page + sizeof(slab_page_t) + slab->cells;
+    return (char*)page + sizeof(slab_page_t);
 }
 
 ////////////////////////////////////
