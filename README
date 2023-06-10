@@ -1,3 +1,27 @@
+
+В операционную систему xv6 добавлено:
+- реализация buddy-аллокатора для распределения памяти кучи внутри ядра xv6 (файлы lib/buddy_alloc/*)
+- реализация slab-аллокатора для динамического выделения структур ядра xv6 (файлы lib/slab_alloc/*)
+- утилита buddy_info, показывающая состояние кучи
+
+В каталоге test содержатся тесты для написанных алгоритмов (правда, они плохие и код там так себе).
+Тесты написаны на C++, они используют реализации buddy и slab как библиотеки C и собираются отдельно от xv6 с помощью CMake.
+
+
+Запуск xv6 в эмуляторе qemu:
+make qemu
+
+Очистка временных файлов:
+make clean
+
+Сборка тестов из подкаталога:
+cmake ..
+
+
+
+Далее - оригинальное описание xv6
+=============================================================================
+
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
